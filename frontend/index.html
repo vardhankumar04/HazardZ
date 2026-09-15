@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HazardZ — AI-Powered Mobile Urban Intelligence Platform | SIH 2026</title>
+  <meta name="description" content="Turning public transport fleets into mobile road-intelligence units. AI-powered road hazard detection, dynamic city mapping, and authority alert prioritization for Smart India Hackathon 2026.">
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Dark City Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="theme-dark">
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <div class="pulse-indicator"></div>
+        <span class="brand-title">Hazard<span class="brand-z">Z</span></span>
+      </div>
+      <div class="sih-tag">
+        <span class="tag-sih">SIH 2026</span>
+        <span class="tag-team">Team Chillchat</span>
+        <span class="tag-desc">Public Bus Mobile Sensing</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="header-nav">
+      <button class="nav-tab active" id="tab-command-center" onclick="switchView('command-center')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Command Center
+      </button>
+      <button class="nav-tab" id="tab-dashcam" onclick="switchView('dashcam')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+        Bus Edge AI (HUD)
+      </button>
+      <button class="nav-tab" id="tab-fleet" onclick="switchView('fleet')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="22" height="13" rx="2"></rect><path d="M7 21a2 2 0 100-4 2 2 0 000 4zm10 0a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+        Fleet Telemetry
+      </button>
+      <button class="nav-tab" id="tab-presentation" onclick="switchView('presentation')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        SIH Blueprint
+      </button>
+    </nav>
+
+    <!-- Header Actions & Mitigations (Slide 4) -->
+    <div class="header-right">
+      <!-- Weather / Light Filter Toggle (Slide 4 Challenge Mitigation) -->
+      <div class="weather-selector" title="Adaptive confidence filter for lighting and weather conditions (Slide 4)">
+        <span class="weather-label">Env:</span>
+        <button class="weather-btn active" id="btn-weather-clear" onclick="setWeather('CLEAR')">☀️ Clear</button>
+        <button class="weather-btn" id="btn-weather-rain" onclick="setWeather('RAIN')">🌧️ Rain (+8% Conf)</button>
+        <button class="weather-btn" id="btn-weather-night" onclick="setWeather('NIGHT')">🌙 Night (+5% Conf)</button>
+      </div>
+
+      <!-- OpenRouteService / OpenMapRoute Key Configuration -->
+      <button class="btn btn-secondary btn-sm" id="btn-open-route-modal" onclick="openRouteKeyModal()" title="Configure OpenRouteService / OpenMapRoute API Key for live road routing">
+        <span class="status-dot offline" id="route-key-dot"></span>
+        <span id="route-key-text">OpenRoute Key</span>
+      </button>
+
+      <!-- Simulation Engine Play/Pause -->
+      <button class="btn btn-secondary btn-sm" id="btn-toggle-simulation" onclick="toggleFleetSimulation()">
+        <span class="status-dot online" id="sim-indicator"></span>
+        <span id="sim-btn-text">Fleet Auto-Drive: ON</span>
+      </button>
+
+      <!-- Instant Trigger Edge Detection -->
+      <button class="btn btn-accent btn-sm" id="btn-trigger-detection" onclick="triggerSimulatedDetection()">
+        ⚡ Trigger Edge Hazard
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="app-main">
+    <!-- VIEW 1: Municipal Command Center -->
+    <section class="view-panel active" id="view-command-center">
+      <!-- KPI Metric Strip -->
+      <div class="kpi-strip">
+        <div class="kpi-card" id="card-road-health">
+          <div class="kpi-label">City Road Health Index</div>
+          <div class="kpi-health-wrapper">
+            <div class="health-gauge">
+              <svg viewBox="0 0 36 36" class="circular-chart">
+                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path class="circle" id="health-circle-bar" stroke-dasharray="82, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <div class="health-percent" id="kpi-health-percent">82%</div>
+            </div>
+            <div class="health-meta">
+              <span class="health-status-badge good" id="health-status-text">Good Condition</span>
+              <span class="health-sub">Calculated from live hazard density & critical alerts</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Active Critical Hazards</div>
+          <div class="kpi-val text-critical" id="kpi-critical-count">2</div>
+          <div class="kpi-sub">Needs immediate PWD intervention</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Total Detected Hazards</div>
+          <div class="kpi-val" id="kpi-total-hazards">5</div>
+          <div class="kpi-sub"><span id="kpi-resolved-count">1</span> repaired today</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Sensing Public Buses</div>
+          <div class="kpi-val text-cyan" id="kpi-active-buses">4 <span class="kpi-unit">Units</span></div>
+          <div class="kpi-sub">Continuous road surveillance active</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Fleet Coverage Today</div>
+          <div class="kpi-val text-amber" id="kpi-coverage-km">178.3 <span class="kpi-unit">km</span></div>
+          <div class="kpi-sub">Zero dedicated inspection vehicles required</div>
+        </div>
+      </div>
+
+      <!-- Main Layout: Map (Left) + Priority Feed (Right) -->
+      <div class="command-grid">
+        <!-- Map Container -->
+        <div class="map-panel">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h1 class="panel-title">Dynamic City Hazard & Fleet Map</h1>
+              <span class="panel-subtitle">Hyderabad Transit Corridors • Real-time GPS Telemetry</span>
+            </div>
+            <div class="map-controls">
+              <button class="map-ctrl-btn active" id="btn-toggle-buses" onclick="toggleLayer('buses')">🚌 Buses</button>
+              <button class="map-ctrl-btn active" id="btn-toggle-hazards" onclick="toggleLayer('hazards')">⚠️ Hazards</button>
+              <button class="map-ctrl-btn active" id="btn-toggle-corridors" onclick="toggleLayer('corridors')">🛣️ Corridors</button>
+              <button class="map-ctrl-btn" id="btn-recenter" onclick="recenterMap()">🎯 Recenter</button>
+            </div>
+          </div>
+          <div class="map-wrapper">
+            <div id="leaflet-city-map"></div>
+            <!-- Map Overlay Legend -->
+            <div class="map-legend">
+              <div class="legend-item"><span class="legend-dot critical"></span> Critical (Immediate)</div>
+              <div class="legend-item"><span class="legend-dot high"></span> High (Priority)</div>
+              <div class="legend-item"><span class="legend-dot medium"></span> Medium</div>
+              <div class="legend-item"><span class="legend-dot low"></span> Low</div>
+              <div class="legend-item"><span class="legend-dot bus"></span> Sensing Bus</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Prioritized Alerts & Triage Feed -->
+        <aside class="alerts-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Authority Priority Feed</h2>
+              <span class="panel-subtitle">Sorted by Severity Score (Slide 5: Needs Attention First)</span>
+            </div>
+            <span class="alerts-badge" id="feed-count-badge">5 Alerts</span>
+          </div>
+
+          <!-- Filters -->
+          <div class="feed-filters">
+            <button class="filter-pill active" id="filter-all" onclick="setSeverityFilter('ALL')">All</button>
+            <button class="filter-pill pill-critical" id="filter-critical" onclick="setSeverityFilter('CRITICAL')">Critical</button>
+            <button class="filter-pill pill-high" id="filter-high" onclick="setSeverityFilter('HIGH')">High</button>
+            <button class="filter-pill pill-medium" id="filter-medium" onclick="setSeverityFilter('MEDIUM')">Medium</button>
+            <button class="filter-pill pill-low" id="filter-low" onclick="setSeverityFilter('LOW')">Low</button>
+          </div>
+
+          <!-- Alert Cards Scroll List -->
+          <div class="alerts-list" id="alerts-list-container">
+            <!-- Dynamic hazard cards inserted by JS -->
+          </div>
+
+          <!-- Audit Activity Log Mini-Feed -->
+          <div class="audit-strip">
+            <div class="audit-header">
+              <span>Recent Authority Actions</span>
+              <span class="audit-live-dot"></span>
+            </div>
+            <div class="audit-items" id="audit-feed-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- VIEW 2: Bus In-Cab Dashcam & Edge AI HUD -->
+    <section class="view-panel" id="view-dashcam">
+      <div class="dashcam-container">
+        <!-- Top HUD Control Bar -->
+        <div class="hud-topbar">
+          <div class="bus-selector-group">
+            <label for="select-dashcam-bus">Sensing Bus Unit:</label>
+            <select id="select-dashcam-bus" onchange="changeDashcamBus(this.value)">
+              <option value="TS-09-UB-4012">TS-09-UB-4012 (Route 47L - Koti Corridor)</option>
+              <option value="TS-09-UB-3108">TS-09-UB-3108 (Route 9M - Charminar)</option>
+              <option value="TS-09-UB-1042">TS-09-UB-1042 (Route 8R - South Corridor)</option>
+              <option value="TS-09-UB-5221">TS-09-UB-5221 (Route 127 - Tank Bund Express)</option>
+            </select>
+          </div>
+
+          <!-- Slide 4 Challenge: Store-and-Forward Offline Connectivity Mitigation -->
+          <div class="edge-sync-toggle">
+            <span class="sync-label">5G Cloud Sync:</span>
+            <button class="btn btn-sm btn-outline active" id="btn-toggle-offline" onclick="toggleStoreAndForward()">
+              <span class="status-dot online" id="sync-dot"></span>
+              <span id="sync-text">Connected (Live Stream)</span>
+            </button>
+            <span class="sync-queue-badge" id="sync-queue-badge">0 buffered</span>
+          </div>
+
+          <div class="custom-media-tools">
+            <label class="btn btn-sm btn-secondary" for="input-custom-frame" title="Upload road photo for YOLO inference">
+              📁 Upload Road Frame
+            </label>
+            <input type="file" id="input-custom-frame" accept="image/*" style="display:none;" onchange="handleCustomFrameUpload(event)">
+            <button class="btn btn-sm btn-secondary" id="btn-webcam" onclick="toggleWebcam()">
+              📹 Web Camera
+            </button>
+          </div>
+        </div>
+
+        <!-- Dashcam Screen with AI Vision HUD -->
+        <div class="dashcam-screen-wrapper">
+          <div class="dashcam-viewport" id="dashcam-viewport">
+            <canvas id="dashcam-canvas" width="960" height="540"></canvas>
+            
+            <!-- Video element for webcam if activated -->
+            <video id="webcam-video" autoplay playsinline muted style="display:none;"></video>
+
+            <!-- Real-time In-Cab HUD Overlays -->
+            <div class="hud-overlay hud-top-left">
+              <div class="hud-badge"><span class="hud-red-rec">●</span> REC • 1080p 30FPS</div>
+              <div class="hud-meta-row">BUS ID: <span class="text-cyan font-mono" id="hud-bus-id">TS-09-UB-4012</span></div>
+              <div class="hud-meta-row">ROUTE: <span class="font-mono" id="hud-bus-route">Route 47L</span></div>
+              <div class="hud-meta-row">CORRIDOR: <span class="font-mono" id="hud-bus-road">Afzal Gunj - Koti Arterial</span></div>
+            </div>
+
+            <div class="hud-overlay hud-top-right">
+              <div class="hud-badge-ai">AI YOLOv8 ROAD-SENSE ACTIVE</div>
+              <div class="hud-meta-row">INFERENCE: <span class="text-emerald font-mono" id="hud-latency">18ms (Edge NPU)</span></div>
+              <div class="hud-meta-row">THRESHOLD: <span class="font-mono" id="hud-threshold">0.70 (Weather Adaptive)</span></div>
+              <div class="hud-meta-row">SYNC MODE: <span class="text-cyan font-mono" id="hud-sync-status">5G Real-time</span></div>
+            </div>
+
+            <!-- Target Reticle & Road Perspective Grid -->
+            <div class="hud-crosshair"></div>
+
+            <div class="hud-overlay hud-bottom-left">
+              <div class="hud-telemetry-cluster">
+                <div class="telem-item">
+                  <span class="telem-val font-mono" id="hud-speed">36</span>
+                  <span class="telem-lbl">KM/H</span>
+                </div>
+                <div class="telem-item">
+                  <span class="telem-val font-mono" id="hud-heading">045°</span>
+                  <span class="telem-lbl">NE</span>
+                </div>
+                <div class="telem-coords font-mono" id="hud-coords">17.39120° N, 78.49050° E</div>
+              </div>
+            </div>
+
+            <!-- Detection Alert Flash Banner -->
+            <div class="hud-alert-banner" id="hud-detection-banner">
+              <div class="alert-icon">⚠️</div>
+              <div class="alert-info">
+                <div class="alert-title" id="hud-alert-title">POTHOLE DETECTED [CRITICAL]</div>
+                <div class="alert-sub" id="hud-alert-sub">Confidence: 94% • GPS Tagged • Geo-packet Streamed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Engine Explainer Strip -->
+        <div class="dashcam-footer-info">
+          <div class="info-pill">
+            <span class="pill-dot emerald"></span>
+            <span><strong>Multi-Frame Validation (Slide 4):</strong> Hazard must persist across ≥3 frames before transmission to eliminate camera vibration artifacts.</span>
+          </div>
+          <div class="info-pill">
+            <span class="pill-dot amber"></span>
+            <span><strong>Store-and-Forward:</strong> If bus enters low-connectivity underpasses, detections are held in NVRAM and synced when reconnected.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: Fleet Telemetry & Corridors -->
+    <section class="view-panel" id="view-fleet">
+      <div class="fleet-view-container">
+        <div class="fleet-header">
+          <div>
+            <h2 class="section-title">Public Transport Fleet Management</h2>
+            <p class="section-desc">Distributed sensing network: public buses already moving across the city continuously map urban road quality.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="fetchFleetData()">🔄 Refresh Fleet Ping</button>
+        </div>
+
+        <div class="fleet-table-card">
+          <table class="fleet-table">
+            <thead>
+              <tr>
+                <th>Bus Registration</th>
+                <th>Route Number</th>
+                <th>Driver Assigned</th>
+                <th>Current Corridor</th>
+                <th>GPS Coordinates</th>
+                <th>Speed</th>
+                <th>Hazards Detected</th>
+                <th>Distance Covered</th>
+                <th>Sync Status</th>
+                <th>Edge Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fleet-table-body">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: SIH Blueprint & Technical Architecture -->
+    <section class="view-panel" id="view-presentation">
+      <div class="presentation-container">
+        <div class="deck-header">
+          <span class="badge-accent">Smart India Hackathon 2026 Submission</span>
+          <h2 class="deck-title">HazardZ — AI-Powered Mobile Urban Intelligence Platform</h2>
+          <p class="deck-lead">Turning public transport fleets into mobile road-intelligence units. Solution Blueprint for Team Chillchat.</p>
+        </div>
+
+        <div class="deck-grid">
+          <div class="deck-card">
+            <div class="deck-card-num">01</div>
+            <h3>Problem Statement</h3>
+            <p>Urban road hazards (potholes, cracks, waterlogging, debris) are frequent, but inspection is manual, slow, and limited in coverage. Hazards remain unnoticed until citizens report them or damage becomes severe.</p>
+          </div>
+
+          <div class="deck-card highlight">
+            <div class="deck-card-num">02</div>
+            <h3>Why It Is Unique</h3>
+            <p><strong>No dedicated inspection fleet required!</strong> Vehicles already traversing the city (public buses, sanitation trucks) become a distributed edge-sensing network with zero additional fuel/labor costs.</p>
+          </div>
+
+          <div class="deck-card">
+            <div class="deck-card-num">03</div>
+            <h3>Technical Approach</h3>
+            <ul class="deck-list">
+              <li><strong>AI / CV:</strong> YOLO-style object detection + severity scoring.</li>
+              <li><strong>Location:</strong> High-precision GPS coordinates + timestamps.</li>
+              <li><strong>Backend:</strong> Python / FastAPI high-throughput event ingestion.</li>
+              <li><strong>Dynamic Mapping:</strong> OpenStreetMap city corridors & severity zones.</li>
+              <li><strong>Alerts:</strong> Municipal prioritization engine (Alert → Verify → Prioritize → Maintain).</li>
+            </ul>
+          </div>
+
+          <div class="deck-card">
+            <div class="deck-card-num">04</div>
+            <h3>Feasibility & Mitigations</h3>
+            <ul class="deck-list">
+              <li><strong>Lighting / Weather:</strong> Adaptive confidence thresholds (Rain: +8%, Night: +5%).</li>
+              <li><strong>False Detections:</strong> Multi-frame validation + authority verification workflow.</li>
+              <li><strong>Connectivity:</strong> Store-and-forward edge buffer syncs upon network return.</li>
+            </ul>
+          </div>
+
+          <div class="deck-card">
+            <div class="deck-card-num">05</div>
+            <h3>Impact & Benefits</h3>
+            <p>Authorities see what needs attention first — not just what was reported last. Automated road monitoring reduces manual inspection by 85% and cuts repair turnaround times.</p>
+          </div>
+
+          <div class="deck-card">
+            <div class="deck-card-num">06</div>
+            <h3>Future Scope</h3>
+            <p>Predictive deterioration modeling, weather forecast correlation, citizen app verification crowdsourcing, and smart-city SCADA system integration.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Work Order & Dispatch Crew -->
+  <div class="modal-backdrop" id="modal-dispatch">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-hazard-title">Dispatch Municipal Repair Crew</h3>
+        <button class="modal-close" onclick="closeDispatchModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-hazard-preview">
+          <div class="modal-preview-img-wrapper">
+            <canvas id="modal-hazard-canvas" width="320" height="180"></canvas>
+          </div>
+          <div class="modal-preview-info">
+            <div class="modal-meta-row"><strong>Hazard ID:</strong> <span id="modal-hazard-id" class="font-mono">HAZ-HYD-101</span></div>
+            <div class="modal-meta-row"><strong>Type:</strong> <span id="modal-hazard-type">Pothole</span></div>
+            <div class="modal-meta-row"><strong>Severity:</strong> <span id="modal-hazard-severity" class="badge-critical">CRITICAL (9.2/10)</span></div>
+            <div class="modal-meta-row"><strong>Location:</strong> <span id="modal-hazard-location">Afzal Gunj - Koti Corridor</span></div>
+            <div class="modal-meta-row"><strong>GPS:</strong> <span id="modal-hazard-coords" class="font-mono">17.3912, 78.4905</span></div>
+            <div class="modal-meta-row"><strong>Detected By:</strong> <span id="modal-hazard-bus">TS-09-UB-4012 (Route 47L)</span></div>
+          </div>
+        </div>
+
+        <form id="form-dispatch" onsubmit="submitDispatch(event)">
+          <div class="form-group">
+            <label for="select-contractor">Assign Maintenance Division / Contractor:</label>
+            <select id="select-contractor" required>
+              <option value="GHMC Rapid Bitumen Unit 1">GHMC Rapid Bitumen Unit 1 (Asphalt / Potholes)</option>
+              <option value="PWD Rapid Response Unit 4">PWD Rapid Response Unit 4 (Debris & Obstacles)</option>
+              <option value="GHMC Drainage & Monsoon Team">GHMC Drainage & Monsoon Team (Waterlogging)</option>
+              <option value="Apex Infrastructure Ltd">Apex Infrastructure Ltd (Structural Road Repairs)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="input-repair-notes">Work Order Dispatch Notes:</label>
+            <textarea id="input-repair-notes" rows="3" placeholder="Provide instructions for road closure, cold-mix asphalt, or drainage pumping..."></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="markHazardVerified()">✓ Confirm Verification Only</button>
+            <button type="submit" class="btn btn-accent" id="btn-submit-dispatch">🚨 Issue Work Order & Dispatch</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: OpenRouteService / OpenMapRoute Key Setup -->
+  <div class="modal-backdrop" id="modal-route-api">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">OpenRouteService / OpenMapRoute API Configuration</h3>
+        <button class="modal-close" onclick="closeRouteKeyModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+          Connect your <strong>OpenRouteService (ORS) / OpenMapRoute API key</strong> to calculate street-accurate turn-by-turn navigation geometries and road lengths for the Hyderabad bus transit network.
+        </p>
+
+        <div style="background: rgba(11, 17, 32, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; font-size: 0.8rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>Current Status:</span>
+            <strong id="modal-route-status" style="color: var(--sev-high);">Checking...</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>Active Key:</span>
+            <span class="font-mono text-cyan" id="modal-route-masked-key">None</span>
+          </div>
+        </div>
+
+        <form id="form-route-key" onsubmit="saveRouteApiKey(event)">
+          <div class="form-group">
+            <label for="input-openroute-key">Enter OpenRouteService API Key:</label>
+            <input type="password" id="input-openroute-key" placeholder="e.g. 5b3ce3597851110001cf6248..." required style="background: rgba(30, 41, 59, 0.7); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); color: white; padding: 0.6rem 0.85rem; font-family: var(--font-mono); font-size: 0.85rem; outline: none;">
+            <small style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
+              Don't have one? Get a free API key at <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener noreferrer" style="color: var(--accent-cyan); text-decoration: underline;">openrouteservice.org/dev</a>
+            </small>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeRouteKeyModal()">Cancel</button>
+            <button type="submit" class="btn btn-accent" id="btn-save-route-key">💾 Attach & Activate Route API</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Alert for New Critical Hazards -->
+  <audio id="audio-alert" preload="auto">
+    <!-- Clean base64 synthetic beep to ensure no broken asset links -->
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/DCkF4uFz2m4u22hlUtEiqX2/C6iVErDR6O1e2uek4nCQ980OqpcUAdAwd0zuikbzgTAQZyzOacZSsDAHHJ5Z1nLAMAcMblnGctAgBvxuWcbS4CAHHJ5Z1nLAM=" type="audio/wav">
+  </audio>
+
+  <!-- External Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Application Scripts -->
+  <script src="/js/map.js"></script>
+  <script src="/js/dashcam.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
