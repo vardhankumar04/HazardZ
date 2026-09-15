@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HazardZ — AI-Powered Mobile Urban Intelligence Platform
 ### Smart India Hackathon 2026 | Team: Chillchat
 **Theme:** Smart City / Urban Infrastructure  
@@ -95,3 +96,7 @@ Once running, navigate to:
 
 4. **SIH Blueprint (Tab 4)**:
    - Interactive presentation overview summarizing the hackathon problem statement, novelty, and architecture.
+=======
+# HazardZ
+HazardZ uses public transport as a mobile sensing network to detect potholes, damaged roads, waterlogging, and other hazards. AI identifies their location and severity, displaying them on a safety map to help authorities respond faster and make cities safer.
+>>>>>>> e5b7ae7d0224dd54bf7f007eed7216c66fdc62c0
